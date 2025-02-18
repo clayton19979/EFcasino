@@ -7,30 +7,24 @@
 <body>
     <h2>Smart Storage Unit dApp</h2>
 
+    <h3>Store an Item</h3>
     <label>Item Name:</label>
     <input type="text" id="itemName">
     <button onclick="storeItem()">Store Item</button>
 
-    <h3>Withdraw Item</h3>
+    <h3>Withdraw an Item</h3>
     <label>Slot Number:</label>
     <input type="number" id="slotNumber">
     <button onclick="withdrawItem()">Withdraw Item</button>
 
-    <h3>Check Storage</h3>
-    <label>Slot Number:</label>
-    <input type="number" id="checkSlot">
-    <button onclick="getStoredItem()">Check Storage</button>
-    <p id="storageData"></p>
+    <h3>Check Stored Items</h3>
+    <button onclick="fetchStoredItems()">Check Storage</button>
+    <div id="storageData"></div>
 
     <script>
         const contractAddress = "0x066BEBb40443040Af936d74aF4f074177358243a"; // Your deployed contract address
 
         const contractABI = [
-            {
-                "inputs": [],
-                "stateMutability": "nonpayable",
-                "type": "constructor"
-            },
             {
                 "inputs": [
                     {
@@ -85,6 +79,19 @@
                 ],
                 "stateMutability": "view",
                 "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "totalStored",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
             }
         ];
 
@@ -117,13 +124,26 @@
             alert("Item Withdrawn!");
         }
 
-        async function getStoredItem() {
-            const slot = document.getElementById("checkSlot").value;
+        async function fetchStoredItems() {
             const contract = await connectWeb3();
             if (!contract) return;
-            const data = await contract.methods.getStoredItem(slot).call();
-            document.getElementById("storageData").innerText = 
-                `Owner: ${data[0]}, Item: ${data[1]}, Time: ${data[2]}`;
+
+            const totalStored = await contract.methods.totalStored().call();
+            let storedItemsList = "<h3>Items in SSU:</h3><ul>";
+
+            for (let i = 1; i <= totalStored; i++) {
+                try {
+                    const data = await contract.methods.getStoredItem(i).call();
+                    if (data[0] !== "0x0000000000000000000000000000000000000000") { 
+                        storedItemsList += `<li>Slot ${i}: ${data[1]} (Owner: ${data[0]})</li>`;
+                    }
+                } catch (error) {
+                    console.error(`Error fetching slot ${i}:`, error);
+                }
+            }
+
+            storedItemsList += "</ul>";
+            document.getElementById("storageData").innerHTML = storedItemsList;
         }
     </script>
 </body>
