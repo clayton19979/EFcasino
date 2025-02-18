@@ -95,6 +95,15 @@
         const contractAddress = "0x8828a6259AFaa2dC9dD83eD6CA92eFBF2017594d"; 
         const eveTokenAddress = "0x4b6deF4Ac5Ad63D53BF127e27B6EDe14661B2343"; 
 
+        const casinoABI = [
+            { "inputs": [{"internalType": "uint256","name": "_amount","type": "uint256"}], "name": "deposit", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{"internalType": "uint256","name": "_betAmount","type": "uint256"}], "name": "startGame", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "hit", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "stand", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{"internalType": "uint256","name": "_amount","type": "uint256"}], "name": "withdraw", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{"internalType": "address","name": "","type": "address"}], "name": "balances", "outputs": [{"internalType": "uint256","name": "","type": "uint256"}], "stateMutability": "view", "type": "function" }
+        ];
+
         async function connectWallet() {
             if (typeof window.ethereum !== 'undefined') {
                 await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -111,24 +120,14 @@
         }
 
         async function checkBalance() {
-            const casino = new web3.eth.Contract([{ 
-                "constant": true, 
-                "inputs": [{"name": "_user", "type": "address"}], 
-                "name": "balances", 
-                "outputs": [{"name": "", "type": "uint256"}], 
-                "payable": false, 
-                "stateMutability": "view", 
-                "type": "function"
-            }], contractAddress);
+            const casino = new web3.eth.Contract(casinoABI, contractAddress);
             const balance = await casino.methods.balances(userAccount).call();
             document.getElementById("casinoBalance").innerText = `Casino Balance: ${balance} EVE`;
         }
 
         async function deposit() {
             const depositAmount = prompt("Enter deposit amount:");
-            const casino = new web3.eth.Contract([
-                { "constant": false, "inputs": [{ "name": "_amount", "type": "uint256" }], "name": "deposit", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }
-            ], contractAddress);
+            const casino = new web3.eth.Contract(casinoABI, contractAddress);
 
             await casino.methods.deposit(depositAmount).send({ from: userAccount });
             checkBalance();
@@ -136,9 +135,7 @@
 
         async function withdraw() {
             const withdrawAmount = prompt("Enter withdrawal amount:");
-            const casino = new web3.eth.Contract([
-                { "constant": false, "inputs": [{ "name": "_amount", "type": "uint256" }], "name": "withdraw", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }
-            ], contractAddress);
+            const casino = new web3.eth.Contract(casinoABI, contractAddress);
 
             await casino.methods.withdraw(withdrawAmount).send({ from: userAccount });
             checkBalance();
@@ -151,16 +148,18 @@
             document.getElementById("dealerCards").innerHTML = `<div class="card hidden-card">?</div>`;
         }
 
-        function hit() {
+        async function hit() {
+            const casino = new web3.eth.Contract(casinoABI, contractAddress);
+            await casino.methods.hit().send({ from: userAccount });
+
             document.getElementById("playerCards").innerHTML += `<div class="card">${Math.floor(Math.random() * 11) + 1}</div>`;
         }
 
         async function stand() {
-            document.getElementById("dealerCards").innerHTML = `<div class="card">${Math.floor(Math.random() * 11) + 1}</div>`;
-
-            const casino = new web3.eth.Contract([{ "constant": false, "inputs": [], "name": "stand", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }], contractAddress);
+            const casino = new web3.eth.Contract(casinoABI, contractAddress);
             await casino.methods.stand().send({ from: userAccount });
 
+            document.getElementById("dealerCards").innerHTML = `<div class="card">${Math.floor(Math.random() * 11) + 1}</div>`;
             checkBalance();
             document.getElementById("gameResult").innerText = "Game over! Check your balance.";
         }
