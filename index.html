@@ -15,8 +15,8 @@
     <script>
         let web3;
         let userAccount;
-        const contractAddress = "YOUR_NEW_CASINO_CONTRACT"; // Replace with deployed casino contract
-        const eveTokenAddress = "EVE_TOKEN_CONTRACT_ADDRESS"; // Replace with the EVE token contract address
+        const contractAddress = "YOUR_NEW_CASINO_CONTRACT"; // Replace with your deployed contract
+        const eveTokenAddress = "EVE_TOKEN_CONTRACT_ADDRESS"; // Replace with the EVE token contract
 
         const casinoABI = [
             {
@@ -62,7 +62,7 @@
         }
 
         async function placeBet() {
-            if (!web3) {
+            if (!web3 || !userAccount) {
                 alert("Web3 not initialized. Please connect your wallet first.");
                 return;
             }
@@ -76,19 +76,26 @@
                 return;
             }
 
-            const weiAmount = web3.utils.toWei(betAmount, "ether"); // Convert to smallest unit
+            const weiAmount = web3.utils.toWei(betAmount, "ether"); // Convert EVE tokens to smallest unit
 
             try {
-                // Approve tokens first
-                console.log("Approving tokens...");
-                await eveToken.methods.approve(contractAddress, weiAmount).send({ from: userAccount });
+                console.log("Requesting Metamask approval...");
 
+                // Step 1: Approve tokens first
+                const approveTx = await eveToken.methods.approve(contractAddress, weiAmount).send({
+                    from: userAccount
+                });
+
+                console.log("Approval transaction successful:", approveTx);
+
+                // Step 2: Now place the bet
                 console.log("Placing bet...");
-                // Place bet
-                const transaction = await casino.methods.bet(weiAmount).send({ from: userAccount });
+                const betTx = await casino.methods.bet(weiAmount).send({
+                    from: userAccount
+                });
 
                 document.getElementById("result").innerText = "Bet placed! Check if you won!";
-                console.log("Transaction successful:", transaction);
+                console.log("Bet transaction successful:", betTx);
             } catch (error) {
                 console.error("Transaction failed:", error);
                 document.getElementById("result").innerText = "Bet failed.";
