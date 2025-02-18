@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Casino dApp - Multi Game</title>
+    <title>Blackjack Casino</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.0.3/web3.min.js"></script>
     <style>
-        /* Casino Theme */
         body {
             background: url('https://i.imgur.com/2WbDj2P.jpg') no-repeat center center fixed;
             background-size: cover;
@@ -15,12 +14,6 @@
             text-align: center;
             margin: 0;
             padding: 0;
-        }
-
-        h1 {
-            font-size: 36px;
-            margin-top: 20px;
-            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8);
         }
 
         .container {
@@ -41,71 +34,66 @@
             color: black;
             border-radius: 5px;
             cursor: pointer;
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            transition: transform 0.2s ease-in-out;
             margin: 10px;
         }
 
         button:hover {
             transform: scale(1.1);
-            box-shadow: 0px 0px 15px rgba(255, 215, 0, 1);
         }
 
-        input {
-            width: 80%;
-            padding: 10px;
-            margin: 10px;
-            border-radius: 5px;
-            border: none;
+        .card {
+            width: 80px;
+            height: 120px;
+            background: white;
+            color: black;
+            font-size: 20px;
+            line-height: 120px;
             text-align: center;
-            font-size: 18px;
+            display: inline-block;
+            margin: 5px;
+            border-radius: 5px;
+            box-shadow: 2px 2px 5px black;
         }
 
-        p {
-            font-size: 18px;
-        }
-
-        #gameResult {
-            font-size: 22px;
-            font-weight: bold;
-            margin-top: 20px;
-            color: gold;
+        .hidden-card {
+            background: black;
+            color: black;
         }
     </style>
 </head>
 <body>
-    <h1>🎰 Welcome to the Blockchain Casino 🎰</h1>
+    <h1>🎰 Blackjack Casino 🎰</h1>
     
-    <div class="container">
-        <button onclick="connectWallet()">🔗 Connect Wallet</button>
-        
-        <h2>🎴 Choose Your Game:</h2>
-        <button onclick="startGame(0)">♠️ Play Blackjack</button>
-        <button onclick="startGame(1)">♥️ Play High Card</button>
-        <button onclick="startGame(2)">♦️ Play Poker Flip</button>
+    <div class="container" id="loginScreen">
+        <button onclick="connectWallet()">🔗 Connect with Metamask</button>
+    </div>
 
-        <p>💰 Bet Amount (EVE Tokens):</p>
-        <input type="number" id="betAmount" placeholder="Enter bet amount">
+    <div class="container" id="homeScreen" style="display: none;">
+        <h2>💳 Casino Account</h2>
+        <button onclick="deposit()">💰 Deposit</button>
+        <button onclick="withdraw()">🏦 Withdraw</button>
+        <button onclick="startBlackjack()">🎴 Play Blackjack</button>
+        <p id="casinoBalance">Casino Balance: 0 EVE</p>
+    </div>
 
-        <button onclick="resolveGame()">🃏 Check Result</button>
-        
-        <p id="wallet">Wallet: Not Connected</p>
+    <div class="container" id="blackjackScreen" style="display: none;">
+        <h2>🃏 Your Cards:</h2>
+        <div id="playerCards"></div>
+        <h2>🏠 Dealer Cards:</h2>
+        <div id="dealerCards">
+            <div class="card hidden-card">?</div>
+        </div>
+        <button onclick="hit()">Hit</button>
+        <button onclick="stand()">Stand</button>
         <p id="gameResult"></p>
     </div>
 
     <script>
         let web3;
         let userAccount;
-        const contractAddress = "0x73f56Dcc2777c4d0Cc48FE6546E42eA178483410"; // Your Casino Contract
-        const eveTokenAddress = "0x4b6deF4Ac5Ad63D53BF127e27B6EDe14661B2343"; // EVE Token Contract
-
-        const casinoABI = [
-            { "constant": false, "inputs": [{"name": "_gameType", "type": "uint8"}, {"name": "_betAmount", "type": "uint256"}], "name": "startGame", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" },
-            { "constant": false, "inputs": [], "name": "resolveGame", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }
-        ];
-
-        const tokenABI = [
-            { "constant": false, "inputs": [{"name": "spender", "type": "address"}, {"name": "amount", "type": "uint256"}], "name": "approve", "outputs": [{"name": "", "type": "bool"}], "stateMutability": "nonpayable", "type": "function" }
-        ];
+        const contractAddress = "0x8828a6259AFaa2dC9dD83eD6CA92eFBF2017594d"; 
+        const eveTokenAddress = "0x4b6deF4Ac5Ad63D53BF127e27B6EDe14661B2343"; 
 
         async function connectWallet() {
             if (typeof window.ethereum !== 'undefined') {
@@ -113,29 +101,68 @@
                 web3 = new Web3(window.ethereum);
                 const accounts = await web3.eth.getAccounts();
                 userAccount = accounts[0];
-                document.getElementById("wallet").innerText = `Wallet: ${userAccount}`;
+
+                document.getElementById("loginScreen").style.display = "none";
+                document.getElementById("homeScreen").style.display = "block";
+                checkBalance();
             } else {
                 alert("Install Metamask to use this dApp!");
             }
         }
 
-        async function startGame(gameType) {
-            const casino = new web3.eth.Contract(casinoABI, contractAddress);
-            const eveToken = new web3.eth.Contract(tokenABI, eveTokenAddress);
-            const betAmount = document.getElementById("betAmount").value;
-            const weiAmount = web3.utils.toWei(betAmount, "ether");
-
-            await eveToken.methods.approve(contractAddress, weiAmount).send({ from: userAccount });
-            await casino.methods.startGame(gameType, weiAmount).send({ from: userAccount });
-
-            document.getElementById("gameResult").innerText = "🎲 Game started! Check result after playing.";
+        async function checkBalance() {
+            const casino = new web3.eth.Contract([{ 
+                "constant": true, 
+                "inputs": [{"name": "_user", "type": "address"}], 
+                "name": "balances", 
+                "outputs": [{"name": "", "type": "uint256"}], 
+                "payable": false, 
+                "stateMutability": "view", 
+                "type": "function"
+            }], contractAddress);
+            const balance = await casino.methods.balances(userAccount).call();
+            document.getElementById("casinoBalance").innerText = `Casino Balance: ${balance} EVE`;
         }
 
-        async function resolveGame() {
-            const casino = new web3.eth.Contract(casinoABI, contractAddress);
-            await casino.methods.resolveGame().send({ from: userAccount });
+        async function deposit() {
+            const depositAmount = prompt("Enter deposit amount:");
+            const casino = new web3.eth.Contract([
+                { "constant": false, "inputs": [{ "name": "_amount", "type": "uint256" }], "name": "deposit", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }
+            ], contractAddress);
 
-            document.getElementById("gameResult").innerText = "🔄 Checking results...";
+            await casino.methods.deposit(depositAmount).send({ from: userAccount });
+            checkBalance();
+        }
+
+        async function withdraw() {
+            const withdrawAmount = prompt("Enter withdrawal amount:");
+            const casino = new web3.eth.Contract([
+                { "constant": false, "inputs": [{ "name": "_amount", "type": "uint256" }], "name": "withdraw", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }
+            ], contractAddress);
+
+            await casino.methods.withdraw(withdrawAmount).send({ from: userAccount });
+            checkBalance();
+        }
+
+        function startBlackjack() {
+            document.getElementById("homeScreen").style.display = "none";
+            document.getElementById("blackjackScreen").style.display = "block";
+            document.getElementById("playerCards").innerHTML = `<div class="card">${Math.floor(Math.random() * 11) + 1}</div>`;
+            document.getElementById("dealerCards").innerHTML = `<div class="card hidden-card">?</div>`;
+        }
+
+        function hit() {
+            document.getElementById("playerCards").innerHTML += `<div class="card">${Math.floor(Math.random() * 11) + 1}</div>`;
+        }
+
+        async function stand() {
+            document.getElementById("dealerCards").innerHTML = `<div class="card">${Math.floor(Math.random() * 11) + 1}</div>`;
+
+            const casino = new web3.eth.Contract([{ "constant": false, "inputs": [], "name": "stand", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }], contractAddress);
+            await casino.methods.stand().send({ from: userAccount });
+
+            checkBalance();
+            document.getElementById("gameResult").innerText = "Game over! Check your balance.";
         }
     </script>
 </body>
