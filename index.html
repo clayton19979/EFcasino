@@ -1,105 +1,141 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Blockchain Casino (Metamask + EVE Tokens)</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Casino dApp - Multi Game</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.0.3/web3.min.js"></script>
+    <style>
+        /* Casino Theme */
+        body {
+            background: url('https://i.imgur.com/2WbDj2P.jpg') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            font-size: 36px;
+            margin-top: 20px;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8);
+        }
+
+        .container {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 20px;
+            width: 50%;
+            margin: auto;
+            margin-top: 50px;
+            box-shadow: 0px 0px 10px rgba(255, 215, 0, 0.7);
+        }
+
+        button {
+            background: linear-gradient(to right, gold, orange);
+            border: none;
+            padding: 12px 20px;
+            font-size: 18px;
+            color: black;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            margin: 10px;
+        }
+
+        button:hover {
+            transform: scale(1.1);
+            box-shadow: 0px 0px 15px rgba(255, 215, 0, 1);
+        }
+
+        input {
+            width: 80%;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: none;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        p {
+            font-size: 18px;
+        }
+
+        #gameResult {
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 20px;
+            color: gold;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to the Blockchain Casino (EVE Tokens)</h1>
-    <button onclick="connectWallet()">Connect Wallet</button>
-    <input type="number" id="betAmount" placeholder="Enter bet amount (EVE)">
-    <button onclick="placeBet()">Place Bet</button>
-    <p id="wallet">Wallet: Not Connected</p>
-    <p id="result"></p>
+    <h1>🎰 Welcome to the Blockchain Casino 🎰</h1>
+    
+    <div class="container">
+        <button onclick="connectWallet()">🔗 Connect Wallet</button>
+        
+        <h2>🎴 Choose Your Game:</h2>
+        <button onclick="startGame(0)">♠️ Play Blackjack</button>
+        <button onclick="startGame(1)">♥️ Play High Card</button>
+        <button onclick="startGame(2)">♦️ Play Poker Flip</button>
+
+        <p>💰 Bet Amount (EVE Tokens):</p>
+        <input type="number" id="betAmount" placeholder="Enter bet amount">
+
+        <button onclick="resolveGame()">🃏 Check Result</button>
+        
+        <p id="wallet">Wallet: Not Connected</p>
+        <p id="gameResult"></p>
+    </div>
 
     <script>
         let web3;
         let userAccount;
-        const contractAddress = "0x40BB2FEAaD73C1987b483bE740965B01aB80d5E6"; // Casino Contract
+        const contractAddress = "0x73f56Dcc2777c4d0Cc48FE6546E42eA178483410"; // Your Casino Contract
         const eveTokenAddress = "0x4b6deF4Ac5Ad63D53BF127e27B6EDe14661B2343"; // EVE Token Contract
 
         const casinoABI = [
-            {
-                "constant": false,
-                "inputs": [{"name": "_amount", "type": "uint256"}],
-                "name": "bet",
-                "outputs": [],
-                "payable": false,
-                "stateMutability": "nonpayable",
-                "type": "function"
-            }
+            { "constant": false, "inputs": [{"name": "_gameType", "type": "uint8"}, {"name": "_betAmount", "type": "uint256"}], "name": "startGame", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" },
+            { "constant": false, "inputs": [], "name": "resolveGame", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }
         ];
 
         const tokenABI = [
-            {
-                "constant": false,
-                "inputs": [
-                    {"name": "spender", "type": "address"},
-                    {"name": "amount", "type": "uint256"}
-                ],
-                "name": "approve",
-                "outputs": [{"name": "", "type": "bool"}],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            }
+            { "constant": false, "inputs": [{"name": "spender", "type": "address"}, {"name": "amount", "type": "uint256"}], "name": "approve", "outputs": [{"name": "", "type": "bool"}], "stateMutability": "nonpayable", "type": "function" }
         ];
 
         async function connectWallet() {
             if (typeof window.ethereum !== 'undefined') {
-                try {
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    web3 = new Web3(window.ethereum);
-                    const accounts = await web3.eth.getAccounts();
-                    userAccount = accounts[0];
-                    document.getElementById("wallet").innerText = `Wallet: ${userAccount}`;
-                    console.log("Connected account:", userAccount);
-                } catch (error) {
-                    console.error("User denied Metamask access:", error);
-                }
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                web3 = new Web3(window.ethereum);
+                const accounts = await web3.eth.getAccounts();
+                userAccount = accounts[0];
+                document.getElementById("wallet").innerText = `Wallet: ${userAccount}`;
             } else {
-                alert("Please install Metamask to use this dApp!");
+                alert("Install Metamask to use this dApp!");
             }
         }
 
-        async function placeBet() {
-            if (!web3 || !userAccount) {
-                alert("Web3 not initialized. Please connect your wallet first.");
-                return;
-            }
-
+        async function startGame(gameType) {
             const casino = new web3.eth.Contract(casinoABI, contractAddress);
             const eveToken = new web3.eth.Contract(tokenABI, eveTokenAddress);
             const betAmount = document.getElementById("betAmount").value;
+            const weiAmount = web3.utils.toWei(betAmount, "ether");
 
-            if (betAmount <= 0) {
-                alert("Enter a valid bet amount.");
-                return;
-            }
+            await eveToken.methods.approve(contractAddress, weiAmount).send({ from: userAccount });
+            await casino.methods.startGame(gameType, weiAmount).send({ from: userAccount });
 
-            const weiAmount = web3.utils.toWei(betAmount, "ether"); // Convert EVE tokens to smallest unit
+            document.getElementById("gameResult").innerText = "🎲 Game started! Check result after playing.";
+        }
 
-            try {
-                console.log("Requesting Metamask approval...");
+        async function resolveGame() {
+            const casino = new web3.eth.Contract(casinoABI, contractAddress);
+            await casino.methods.resolveGame().send({ from: userAccount });
 
-                // Step 1: Approve tokens first
-                const approveTx = await eveToken.methods.approve(contractAddress, weiAmount).send({
-                    from: userAccount
-                });
-
-                console.log("Approval transaction successful:", approveTx);
-
-                // Step 2: Now place the bet
-                console.log("Placing bet...");
-                const betTx = await casino.methods.bet(weiAmount).send({
-                    from: userAccount
-                });
-
-                document.getElementById("result").innerText = "Bet placed! Check if you won!";
-                console.log("Bet transaction successful:", betTx);
-            } catch (error) {
-                console.error("Transaction failed:", error);
-                document.getElementById("result").innerText = "Bet failed.";
-            }
+            document.getElementById("gameResult").innerText = "🔄 Checking results...";
         }
     </script>
 </body>
