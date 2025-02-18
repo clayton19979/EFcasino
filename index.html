@@ -1,28 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Blockchain Casino</title>
+    <title>Blockchain Casino (EVE Tokens)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.0.3/web3.min.js"></script>
 </head>
 <body>
     <h1>Welcome to the Blockchain Casino</h1>
     <button onclick="connectWallet()">Connect Wallet</button>
-    <button onclick="placeBet()">Place Bet (1 EVE Token)</button>
+    <input type="number" id="betAmount" placeholder="Enter bet amount (EVE)">
+    <button onclick="placeBet()">Place Bet</button>
     <p id="wallet">Wallet: Not Connected</p>
     <p id="result"></p>
 
     <script>
         let web3;
         let userAccount;
-        const contractAddress = "0xf3357E3C8AcFd301bAE15e4E9b17eBd1628cbcc3"; // Your contract address
-        const abi = [
+        const contractAddress = "YOUR_NEW_CASINO_CONTRACT"; // Replace with deployed casino contract
+        const eveTokenAddress = "EVE_TOKEN_CONTRACT_ADDRESS"; // Replace with the EVE token contract address
+
+        const casinoABI = [
             {
                 "constant": false,
-                "inputs": [],
+                "inputs": [{"name": "_amount", "type": "uint256"}],
                 "name": "bet",
                 "outputs": [],
-                "payable": true,
-                "stateMutability": "payable",
+                "payable": false,
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
+        const tokenABI = [
+            {
+                "constant": false,
+                "inputs": [
+                    {"name": "spender", "type": "address"},
+                    {"name": "amount", "type": "uint256"}
+                ],
+                "name": "approve",
+                "outputs": [{"name": "", "type": "bool"}],
+                "stateMutability": "nonpayable",
                 "type": "function"
             }
         ];
@@ -30,7 +47,7 @@
         async function connectWallet() {
             if (typeof window.ethereum !== 'undefined') {
                 try {
-                    await window.ethereum.request({ method: 'eth_requestAccounts' }); // Request access
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
                     web3 = new Web3(window.ethereum);
                     const accounts = await web3.eth.getAccounts();
                     userAccount = accounts[0];
@@ -50,13 +67,25 @@
                 return;
             }
 
-            const casino = new web3.eth.Contract(abi, contractAddress);
-            
+            const casino = new web3.eth.Contract(casinoABI, contractAddress);
+            const eveToken = new web3.eth.Contract(tokenABI, eveTokenAddress);
+            const betAmount = document.getElementById("betAmount").value;
+
+            if (betAmount <= 0) {
+                alert("Enter a valid bet amount.");
+                return;
+            }
+
+            const weiAmount = web3.utils.toWei(betAmount, "ether"); // Convert EVE to Wei
+
             try {
-                const transaction = await casino.methods.bet().send({
-                    from: userAccount,
-                    value: web3.utils.toWei("1", "ether") // Betting 1 EVE token
-                });
+                // Approve tokens first
+                console.log("Approving tokens...");
+                await eveToken.methods.approve(contractAddress, weiAmount).send({ from: userAccount });
+
+                console.log("Placing bet...");
+                // Place bet
+                const transaction = await casino.methods.bet(weiAmount).send({ from: userAccount });
 
                 document.getElementById("result").innerText = "Bet placed! Check if you won!";
                 console.log("Transaction successful:", transaction);
