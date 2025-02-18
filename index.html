@@ -1,149 +1,69 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Smart Storage Unit</title>
-    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <title>Blockchain Casino</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.0.3/web3.min.js"></script>
 </head>
 <body>
-    <h2>Smart Storage Unit dApp</h2>
-
-    <h3>Store an Item</h3>
-    <label>Item Name:</label>
-    <input type="text" id="itemName">
-    <button onclick="storeItem()">Store Item</button>
-
-    <h3>Withdraw an Item</h3>
-    <label>Slot Number:</label>
-    <input type="number" id="slotNumber">
-    <button onclick="withdrawItem()">Withdraw Item</button>
-
-    <h3>Check Stored Items</h3>
-    <button onclick="fetchStoredItems()">Check Storage</button>
-    <div id="storageData"></div>
+    <h1>Welcome to the Blockchain Casino</h1>
+    <button onclick="connectWallet()">Connect Wallet</button>
+    <button onclick="placeBet()">Place Bet (1 EVE Token)</button>
+    <p id="wallet">Wallet: Not Connected</p>
+    <p id="result"></p>
 
     <script>
-        const contractAddress = "0x066BEBb40443040Af936d74aF4f074177358243a"; // Your deployed contract address
-
-        const contractABI = [
+        let web3;
+        let userAccount;
+        const contractAddress = "0xf3357E3C8AcFd301bAE15e4E9b17eBd1628cbcc3"; // Your contract address
+        const abi = [
             {
-                "inputs": [
-                    {
-                        "internalType": "string",
-                        "name": "_itemName",
-                        "type": "string"
-                    }
-                ],
-                "name": "storeItem",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "_slot",
-                        "type": "uint256"
-                    }
-                ],
-                "name": "withdrawItem",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "_slot",
-                        "type": "uint256"
-                    }
-                ],
-                "name": "getStoredItem",
-                "outputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
+                "constant": false,
                 "inputs": [],
-                "name": "totalStored",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
-                "stateMutability": "view",
+                "name": "bet",
+                "outputs": [],
+                "payable": true,
+                "stateMutability": "payable",
                 "type": "function"
             }
         ];
 
-        async function connectWeb3() {
-            if (window.ethereum) {
-                window.web3 = new Web3(window.ethereum);
-                await window.ethereum.request({ method: "eth_requestAccounts" });
-                return new web3.eth.Contract(contractABI, contractAddress);
-            } else {
-                alert("Metamask not detected!");
-                return null;
-            }
-        }
-
-        async function storeItem() {
-            const itemName = document.getElementById("itemName").value;
-            const contract = await connectWeb3();
-            if (!contract) return;
-            const accounts = await web3.eth.getAccounts();
-            await contract.methods.storeItem(itemName).send({ from: accounts[0] });
-            alert("Item Stored!");
-        }
-
-        async function withdrawItem() {
-            const slot = document.getElementById("slotNumber").value;
-            const contract = await connectWeb3();
-            if (!contract) return;
-            const accounts = await web3.eth.getAccounts();
-            await contract.methods.withdrawItem(slot).send({ from: accounts[0] });
-            alert("Item Withdrawn!");
-        }
-
-        async function fetchStoredItems() {
-            const contract = await connectWeb3();
-            if (!contract) return;
-
-            const totalStored = await contract.methods.totalStored().call();
-            let storedItemsList = "<h3>Items in SSU:</h3><ul>";
-
-            for (let i = 1; i <= totalStored; i++) {
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
                 try {
-                    const data = await contract.methods.getStoredItem(i).call();
-                    if (data[0] !== "0x0000000000000000000000000000000000000000") { 
-                        storedItemsList += `<li>Slot ${i}: ${data[1]} (Owner: ${data[0]})</li>`;
-                    }
+                    await window.ethereum.request({ method: 'eth_requestAccounts' }); // Request access
+                    web3 = new Web3(window.ethereum);
+                    const accounts = await web3.eth.getAccounts();
+                    userAccount = accounts[0];
+                    document.getElementById("wallet").innerText = `Wallet: ${userAccount}`;
+                    console.log("Connected account:", userAccount);
                 } catch (error) {
-                    console.error(`Error fetching slot ${i}:`, error);
+                    console.error("User denied Metamask access:", error);
                 }
+            } else {
+                alert("Please install Metamask to use this dApp!");
+            }
+        }
+
+        async function placeBet() {
+            if (!web3) {
+                alert("Web3 not initialized. Please connect your wallet first.");
+                return;
             }
 
-            storedItemsList += "</ul>";
-            document.getElementById("storageData").innerHTML = storedItemsList;
+            const casino = new web3.eth.Contract(abi, contractAddress);
+            
+            try {
+                const transaction = await casino.methods.bet().send({
+                    from: userAccount,
+                    value: web3.utils.toWei("1", "ether") // Betting 1 EVE token
+                });
+
+                document.getElementById("result").innerText = "Bet placed! Check if you won!";
+                console.log("Transaction successful:", transaction);
+            } catch (error) {
+                console.error("Transaction failed:", error);
+                document.getElementById("result").innerText = "Bet failed.";
+            }
         }
     </script>
 </body>
